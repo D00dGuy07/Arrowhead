@@ -53,7 +53,8 @@ namespace arwh
 		void Clear();
 
 		inline static Arena* Create(size_t size);
-		inline static void Dispose(Arena* arena) { free(arena); }
+		inline static Arena* Create(void* buffer, size_t bufferSize);
+		inline static void Dispose(Arena* arena) { if (arena->m_IsSelfAllocated) free(arena); }
 
 		static void InitScratch();
 		inline static void DisposeScratch() { Dispose(s_TempScratch); Dispose(s_PersistentScratch); }
@@ -62,12 +63,13 @@ namespace arwh
 		static Arena* GetPersistentScratch() { return s_PersistentScratch; }
 
 	private:
-		Arena(size_t size);
+		Arena(size_t size, bool selfAllocated);
 
 		uint8_t* m_Data;
 		uint8_t* m_Position;
 		size_t m_TotalSize;
 		size_t m_AllocatedSize = 0;
+		bool m_IsSelfAllocated;
 
 		inline static thread_local Arena* s_TempScratch = nullptr;
 		inline static thread_local Arena* s_PersistentScratch = nullptr;
@@ -126,5 +128,22 @@ namespace arwh
 		Arena* m_Arena;
 		size_t m_ResetPos;
 		bool m_HasReset;
+	};
+
+	class StringBuilder
+	{
+	public:
+		StringBuilder(Arena* arena, size_t size);
+
+		StringBuilder& Push(const char* value);
+		StringBuilder& operator<<(const char* value) { return Push(value); }
+		char* Result() const { return m_Result; }
+
+
+
+	private:
+		char* m_Result;
+		size_t m_Position = 0;
+		size_t m_Size;
 	};
 }

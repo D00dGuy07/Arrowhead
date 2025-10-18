@@ -8,8 +8,8 @@ constexpr size_t ScratchSize = 1024 * 1024;
 
 namespace arwh
 {
-	Arena::Arena(size_t size)
-		: m_TotalSize(size)
+	Arena::Arena(size_t size, bool selfAllocated)
+		: m_TotalSize(size), m_IsSelfAllocated(selfAllocated)
 	{
 		// This constructor assumes that the data block is allocated right after the arena structure
 		m_Data = reinterpret_cast<uint8_t*>(this + 1);
@@ -66,9 +66,15 @@ namespace arwh
 		// Allocate the memory block with an arena structure at the beginning
 		size_t bufferSize = sizeof(Arena) + size;
 		void* buffer = std::malloc(bufferSize);
-		return new(buffer) Arena(size);
+		return new(buffer) Arena(size, true);
 	}
 #pragma warning( pop )
+
+	inline Arena* Arena::Create(void* buffer, size_t bufferSize)
+	{
+		size_t arenaSize = bufferSize - sizeof(Arena);
+		return new(buffer) Arena(arenaSize, false);
+	}
 
 	void Arena::InitScratch()
 	{
@@ -86,6 +92,24 @@ namespace arwh
 	void ScratchSpace::Reset()
 	{
 		m_Arena->SetPosBack(m_ResetPos);
+	}
+
+
+	StringBuilder::StringBuilder(Arena* arena, size_t size)
+		: m_Result(reinterpret_cast<char*>(arena->Push(size))), m_Size(size)
+	{
+		Push("");
+	}
+
+	StringBuilder& StringBuilder::Push(const char* value)
+	{
+		size_t length = strlen(value);
+		ARWH_CORE_ASSERT((m_Position + length + 1) < m_Size, "StringBuilder size exceeded >", m_Size);
+
+		memcpy(m_Result + m_Position, value, length + 1);
+		m_Position += length;
+
+		return *this;
 	}
 }
 
