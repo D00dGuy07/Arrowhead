@@ -70,7 +70,7 @@ namespace arwh
 	}
 #pragma warning( pop )
 
-	inline Arena* Arena::Create(void* buffer, size_t bufferSize)
+	Arena* Arena::Create(void* buffer, size_t bufferSize)
 	{
 		size_t arenaSize = bufferSize - sizeof(Arena);
 		return new(buffer) Arena(arenaSize, false);

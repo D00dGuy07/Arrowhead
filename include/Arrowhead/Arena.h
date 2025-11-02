@@ -52,8 +52,8 @@ namespace arwh
 		void SetPosBack(size_t pos);
 		void Clear();
 
-		inline static Arena* Create(size_t size);
-		inline static Arena* Create(void* buffer, size_t bufferSize);
+		static Arena* Create(size_t size);
+		static Arena* Create(void* buffer, size_t bufferSize);
 		inline static void Dispose(Arena* arena) { if (arena->m_IsSelfAllocated) free(arena); }
 
 		static void InitScratch();
@@ -88,6 +88,8 @@ namespace arwh
 		template<typename... Args>
 		T* Allocate(Arena* arena, Args&&... args)
 		{
+			m_AllocationsCount++;
+
 			Node* node = m_FirstFree;
 			if (node != nullptr)
 			{
@@ -99,20 +101,25 @@ namespace arwh
 				node = arena->PushStructZero<Node>();
 
 			// Initialize the stored structure and return it
-			node->Value = T(std::forward<args>(args)...);
+			new(&(node->Value)) T(std::forward<args>(args)...);
 			return &node->Value;
 		}
 
 		void Free(T* value)
 		{
+			m_AllocationsCount--;
+
 			// Cast the pointer up to a node and add it to the beginning of the free list
 			Node* node = reinterpret_cast<Node*>(value);
 			node->Next = m_FirstFree;
 			m_FirstFree = node;
 		}
 
+		size_t GetAllocationsCount() const { return m_AllocationsCount; }
+
 	private:
 		Node* m_FirstFree = nullptr;
+		size_t m_AllocationsCount = 0;
 	};
 
 	class ScratchSpace
